@@ -32,7 +32,7 @@ candidate_file = st.file_uploader(
     type=["xlsx"]
 )
 subject_file = st.file_uploader(
-    "tblCandSubMarks.csv",
+    "tblCandSubMarks.xlsx",
     type=["xlsx"]
 )
 # -------------------------------------------------
@@ -43,7 +43,8 @@ if all([
     mark_file,
     max_file,
     entrance_file,
-    candidate_file
+    candidate_file,
+    subject_file
 ]):
 
     marks = pd.read_excel(mark_file)
@@ -53,6 +54,42 @@ if all([
     submarks = pd.read_excel(subject_file)
 
     st.success("All files loaded successfully")
+    # -----------------------------------
+# Subject Wise Entrance Details
+# -----------------------------------
+
+    physics = (
+        submarks[submarks["intSubjectID"] == 1]
+        [["intRollNo","decSubTotCorr","intCount"]]
+        .rename(
+            columns={
+                "intRollNo":"RollNo",
+                "decSubTotCorr":"PhysicsEntranceRaw",
+                "intCount":"PhysicsCorrect"
+            }
+        )
+    )
+    
+    maths = (
+        submarks[submarks["intSubjectID"] == 3]
+        [["intRollNo","decSubTotCorr","intCount"]]
+        .rename(
+            columns={
+                "intRollNo":"RollNo",
+                "decSubTotCorr":"MathsEntranceRaw",
+                "intCount":"MathsCorrect"
+            }
+        )
+    )
+    missing_roll = df[df["RollNo"].isna()]
+    
+    if len(missing_roll) > 0:
+        st.error(
+            f"{len(missing_roll)} candidates have no Roll Number"
+        )
+        st.dataframe(
+            missing_roll[["ApplNo","Name"]]
+        )
 
     # -------------------------------------------------
     # Merge Board Maximums
@@ -65,19 +102,7 @@ if all([
         right_on=["BOARD", "YEAR"],
         how="left"
     )
-    df = pd.merge(
-        df,
-        maths,
-        on="RollNo",
-        how="left"
-    )
     
-    df = pd.merge(
-        df,
-        physics,
-        on="RollNo",
-        how="left"
-    )
     
 
     # -------------------------------------------------
@@ -132,24 +157,37 @@ if all([
     # Candidate Details
     # -------------------------------------------------
 
+   # Candidate Details
+
     df = pd.merge(
         df,
         candidates[
-            [
-                "ApplNo",
-                "RollNo",
-                "Name",
-                "DOB"
-            ]
+            ["ApplNo","RollNo","Name","DOB"]
         ],
         on="ApplNo",
         how="left"
     )
-
-    # -------------------------------------------------
+    
+    # Maths Tie Break
+    
+    df = pd.merge(
+        df,
+        maths,
+        on="RollNo",
+        how="left"
+    )
+    
+    # Physics Tie Break
+    
+    df = pd.merge(
+        df,
+        physics,
+        on="RollNo",
+        how="left"
+    )
+    
     # Entrance Score
-    # -------------------------------------------------
-
+    
     df = pd.merge(
         df,
         entrance,
@@ -220,6 +258,19 @@ if all([
         if col not in df.columns:
             df[col] = 0
 
+    st.write("Total Candidates:", len(df))
+
+    st.write(
+        df[
+            [
+                "RollNo",
+                "MathsEntranceRaw",
+                "PhysicsEntranceRaw",
+                "MathsCorrect",
+                "PhysicsCorrect"
+            ]
+        ].head(10)
+    )
     df = df.sort_values(
         by=[
             "IndexMark",
@@ -241,6 +292,17 @@ if all([
             False,  # Physics Correct
             True    # Older candidate
         ]
+    )
+    st.write(
+        df[
+            [
+                "RollNo",
+                "MathsEntranceRaw",
+                "PhysicsEntranceRaw",
+                "MathsCorrect",
+                "PhysicsCorrect"
+            ]
+        ].head()
     )
 
     # -------------------------------------------------
