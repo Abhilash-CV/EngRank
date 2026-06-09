@@ -1,0 +1,280 @@
+import streamlit as st
+import pandas as pd
+
+st.set_page_config(
+    page_title="KEAM Engineering Rank Generator",
+    layout="wide"
+)
+
+st.title("KEAM Engineering Rank List Generator")
+
+# -------------------------------------------------
+# Upload Files
+# -------------------------------------------------
+
+mark_file = st.file_uploader(
+    "markinputs.xlsx",
+    type=["xlsx"]
+)
+
+max_file = st.file_uploader(
+    "maximummarks.xlsx",
+    type=["xlsx"]
+)
+
+entrance_file = st.file_uploader(
+    "tblEnggNormCandSubMarks.xlsx",
+    type=["xlsx"]
+)
+
+candidate_file = st.file_uploader(
+    "candidates.xlsx",
+    type=["xlsx"]
+)
+
+# -------------------------------------------------
+# Generate Ranklist
+# -------------------------------------------------
+
+if all([
+    mark_file,
+    max_file,
+    entrance_file,
+    candidate_file
+]):
+
+    marks = pd.read_excel(mark_file)
+    maxmarks = pd.read_excel(max_file)
+    entrance = pd.read_excel(entrance_file)
+    candidates = pd.read_excel(candidate_file)
+
+    st.success("All files loaded successfully")
+
+    # -------------------------------------------------
+    # Merge Board Maximums
+    # -------------------------------------------------
+
+    df = pd.merge(
+        marks,
+        maxmarks,
+        left_on=["BOARD", "YEARPASS"],
+        right_on=["BOARD", "YEAR"],
+        how="left"
+    )
+
+    # -------------------------------------------------
+    # KEAM Normalization Formula
+    #
+    # YB = (100 * XjB) / HjB
+    # -------------------------------------------------
+
+    df["NormMath"] = (
+        100 *
+        df["MATHS_MARK"]
+    ) / df["MATMAXMARK"]
+
+    df["NormPhy"] = (
+        100 *
+        df["PHY_MARK"]
+    ) / df["PHYMAXMARK"]
+
+    df["NormChem"] = (
+        100 *
+        df["CHE_MARK"]
+    ) / df["CHEMAXMARK"]
+
+    # -------------------------------------------------
+    # Weightage 5:3:2
+    #
+    # Maths = 150
+    # Physics = 90
+    # Chemistry = 60
+    # Total = 300
+    # -------------------------------------------------
+
+    df["MathWeighted"] = (
+        df["NormMath"] * 150 / 100
+    )
+
+    df["PhyWeighted"] = (
+        df["NormPhy"] * 90 / 100
+    )
+
+    df["ChemWeighted"] = (
+        df["NormChem"] * 60 / 100
+    )
+
+    df["PlusTwoScore"] = (
+        df["MathWeighted"] +
+        df["PhyWeighted"] +
+        df["ChemWeighted"]
+    )
+
+    # -------------------------------------------------
+    # Candidate Details
+    # -------------------------------------------------
+
+    df = pd.merge(
+        df,
+        candidates[
+            [
+                "ApplNo",
+                "RollNo",
+                "Name",
+                "DOB"
+            ]
+        ],
+        on="ApplNo",
+        how="left"
+    )
+
+    # -------------------------------------------------
+    # Entrance Score
+    # -------------------------------------------------
+
+    df = pd.merge(
+        df,
+        entrance,
+        on="RollNo",
+        how="left"
+    )
+
+    df["Norm_Score"] = pd.to_numeric(
+        df["Norm_Score"],
+        errors="coerce"
+    ).fillna(0)
+
+    # -------------------------------------------------
+    # Final Index Mark
+    #
+    # PlusTwo (300)
+    # +
+    # KEAM Normalized Score (300)
+    #
+    # Total = 600
+    # -------------------------------------------------
+
+    df["IndexMark"] = (
+        df["PlusTwoScore"] +
+        df["Norm_Score"]
+    )
+
+    # -------------------------------------------------
+    # Rounding
+    # -------------------------------------------------
+
+    df["NormMath"] = df["NormMath"].round(4)
+    df["NormPhy"] = df["NormPhy"].round(4)
+    df["NormChem"] = df["NormChem"].round(4)
+
+    df["PlusTwoScore"] = (
+        df["PlusTwoScore"]
+        .round(4)
+    )
+
+    df["IndexMark"] = (
+        df["IndexMark"]
+        .round(4)
+    )
+
+    # -------------------------------------------------
+    # DOB
+    # Older candidate gets preference
+    # -------------------------------------------------
+
+    df["DOB"] = pd.to_datetime(
+        df["DOB"],
+        errors="coerce"
+    )
+
+    # -------------------------------------------------
+    # Official KEAM Tie Resolution
+    # -------------------------------------------------
+
+    required_columns = [
+        "MathsEntranceRaw",
+        "PhysicsEntranceRaw",
+        "MathsCorrect",
+        "PhysicsCorrect"
+    ]
+
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = 0
+
+    df = df.sort_values(
+        by=[
+            "IndexMark",
+            "MathsEntranceRaw",
+            "PhysicsEntranceRaw",
+            "NormMath",
+            "NormPhy",
+            "MathsCorrect",
+            "PhysicsCorrect",
+            "DOB"
+        ],
+        ascending=[
+            False,  # Index Mark
+            False,  # Maths Entrance
+            False,  # Physics Entrance
+            False,  # Normalized Maths
+            False,  # Normalized Physics
+            False,  # Maths Correct
+            False,  # Physics Correct
+            True    # Older Candidate
+        ]
+    )
+
+    # -------------------------------------------------
+    # Rank
+    # -------------------------------------------------
+
+    df["ERank"] = range(
+        1,
+        len(df) + 1
+    )
+
+    # -------------------------------------------------
+    # Output
+    # -------------------------------------------------
+
+    result = df[
+        [
+            "ERank",
+            "ApplNo",
+            "RollNo",
+            "Name",
+            "BOARD",
+            "YEARPASS",
+            "NormMath",
+            "NormPhy",
+            "NormChem",
+            "PlusTwoScore",
+            "Norm_Score",
+            "IndexMark"
+        ]
+    ]
+
+    st.subheader("Engineering Rank List")
+
+    st.dataframe(
+        result,
+        use_container_width=True,
+        height=700
+    )
+
+    st.metric(
+        "Candidates Ranked",
+        len(result)
+    )
+
+    csv = result.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        label="Download EngineeringRankList.csv",
+        data=csv,
+        file_name="EngineeringRankList.csv",
+        mime="text/csv"
+    )
