@@ -31,7 +31,10 @@ candidate_file = st.file_uploader(
     "candidates.xlsx",
     type=["xlsx"]
 )
-
+subject_file = st.file_uploader(
+    "tblCandSubMarks.csv",
+    type=["xlsx"]
+)
 # -------------------------------------------------
 # Generate Ranklist
 # -------------------------------------------------
@@ -47,6 +50,7 @@ if all([
     maxmarks = pd.read_excel(max_file)
     entrance = pd.read_excel(entrance_file)
     candidates = pd.read_excel(candidate_file)
+    submarks = pd.read_excel(subject_file)
 
     st.success("All files loaded successfully")
 
@@ -61,6 +65,20 @@ if all([
         right_on=["BOARD", "YEAR"],
         how="left"
     )
+    df = pd.merge(
+        df,
+        maths,
+        on="RollNo",
+        how="left"
+    )
+    
+    df = pd.merge(
+        df,
+        physics,
+        on="RollNo",
+        how="left"
+    )
+    
 
     # -------------------------------------------------
     # KEAM Normalization Formula
@@ -214,14 +232,14 @@ if all([
             "DOB"
         ],
         ascending=[
-            False,  # Index Mark
+            False,  # IndexMark
             False,  # Maths Entrance
             False,  # Physics Entrance
             False,  # Normalized Maths
             False,  # Normalized Physics
             False,  # Maths Correct
             False,  # Physics Correct
-            True    # Older Candidate
+            True    # Older candidate
         ]
     )
 
