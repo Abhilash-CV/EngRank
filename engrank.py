@@ -81,15 +81,7 @@ if all([
             }
         )
     )
-    missing_roll = df[df["RollNo"].isna()]
     
-    if len(missing_roll) > 0:
-        st.error(
-            f"{len(missing_roll)} candidates have no Roll Number"
-        )
-        st.dataframe(
-            missing_roll[["ApplNo","Name"]]
-        )
 
     # -------------------------------------------------
     # Merge Board Maximums
@@ -102,7 +94,23 @@ if all([
         right_on=["BOARD", "YEAR"],
         how="left"
     )
+    missing_max = df[
+        df["MATMAXMARK"].isna()
+    ]
     
+    if len(missing_max) > 0:
+    
+        st.error(
+            "Missing board/year maximum marks"
+        )
+    
+        st.dataframe(
+            missing_max[
+                ["ApplNo","BOARD","YEARPASS"]
+            ]
+        )
+    
+        st.stop()
     
 
     # -------------------------------------------------
@@ -167,7 +175,21 @@ if all([
         on="ApplNo",
         how="left"
     )
+    missing_roll = df[df["RollNo"].isna()]
+
+    if len(missing_roll) > 0:
     
+        st.error(
+            f"{len(missing_roll)} candidates have no Roll Number"
+        )
+    
+        st.dataframe(
+            missing_roll[
+                ["ApplNo","Name"]
+            ]
+        )
+    
+        st.stop()
     # Maths Tie Break
     
     df = pd.merge(
@@ -194,7 +216,15 @@ if all([
         on="RollNo",
         how="left"
     )
-
+    missing_norm = df[
+        df["Norm_Score"].isna()
+    ]
+    
+    if len(missing_norm) > 0:
+    
+        st.warning(
+            f"{len(missing_norm)} candidates missing entrance score"
+        )
     df["Norm_Score"] = pd.to_numeric(
         df["Norm_Score"],
         errors="coerce"
