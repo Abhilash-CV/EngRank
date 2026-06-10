@@ -52,6 +52,23 @@ if all([
     entrance = pd.read_excel(entrance_file)
     candidates = pd.read_excel(candidate_file)
     submarks = pd.read_excel(subject_file)
+    # Remove duplicate application records
+    marks = marks.drop_duplicates(
+        subset=["ApplNo"],
+        keep="first"
+    )
+    
+    # Remove duplicate candidate records
+    candidates = candidates.drop_duplicates(
+        subset=["ApplNo"],
+        keep="first"
+    )
+    
+    # Remove duplicate entrance records
+    entrance = entrance.drop_duplicates(
+        subset=["RollNo"],
+        keep="first"
+    )
 
     st.success("All files loaded successfully")
     # -----------------------------------
