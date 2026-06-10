@@ -85,6 +85,11 @@ if all([
                 "intCount":"PhysicsCorrect"
             }
         )
+        .groupby("RollNo", as_index=False)
+        .agg({
+            "PhysicsEntranceRaw":"max",
+            "PhysicsCorrect":"max"
+        })
     )
     
     maths = (
@@ -97,6 +102,11 @@ if all([
                 "intCount":"MathsCorrect"
             }
         )
+        .groupby("RollNo", as_index=False)
+        .agg({
+            "MathsEntranceRaw":"max",
+            "MathsCorrect":"max"
+        })
     )
     
 
